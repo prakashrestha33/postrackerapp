@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Postracker</string>
+    <string name="batch_id">Enter Batch Id</string>
+</resources>
