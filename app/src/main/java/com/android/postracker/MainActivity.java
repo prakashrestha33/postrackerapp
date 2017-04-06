@@ -1,27 +1,19 @@
 package com.android.postracker;
 
 import android.app.AlertDialog;
-import android.app.Dialog;
 import android.content.DialogInterface;
 import android.location.Address;
 import android.location.Geocoder;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.os.StrictMode;
+import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import com.android.volley.AuthFailureError;
-import com.android.volley.DefaultRetryPolicy;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
+import com.android.postracker.jsonparse.JsonParser;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -36,10 +28,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback{
-    final String url = "192.168.0.112:8080/api/tracking/create";
+    final String url = "192.168.10.8:8000/api/tracking/create";
+    private final JsonParser jsonParser = new JsonParser();
     private double Latitude = 27.6868, Longitute = 85.3352;
     private GoogleMap mMap;
     private String cityName="shankhamul";
@@ -127,60 +119,50 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 // ...Irrelevant code for customizing the buttons and title
         LayoutInflater inflater = this.getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_main, null);
+        batchEditText = (EditText) dialogView.findViewById(R.id.dialog_main_batch_editText);
         dialogBuilder.setView(dialogView);
 
-        batchEditText =(EditText) findViewById(R.id.dialog_main_batch_editText);
+        if (android.os.Build.VERSION.SDK_INT > 9) {
+            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+            StrictMode.setThreadPolicy(policy);
+        }
 
         dialogBuilder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-
             }
         });
 
-        AlertDialog alertDialog = dialogBuilder.create();
+        final AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
 
         alertDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                setOrder();
-            }
-        });
-    }
-
-    private void setOrder() {
-        StringRequest request = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
-            @Override
-            public void onResponse(String response) {
-                try {
-                    JSONObject jsonObject = new JSONObject(response);
-                    boolean error = jsonObject.getBoolean("error");
-                    if (!error){
-                        Toast.makeText(MainActivity.this, "Tracking has been created", Toast.LENGTH_SHORT).show();
-                    }else {
-                        Toast.makeText(MainActivity.this, "Something went wrong", Toast.LENGTH_SHORT).show();
+                final String data = batchEditText.getText().toString().trim();
+                if (data.length() < 0) {
+                    Toast.makeText(MainActivity.this, "Fields are Empty", Toast.LENGTH_SHORT).show();
+                } else {
+                    HashMap<String, String> hashMap = new HashMap<>();
+                    hashMap.put("address_name", cityName + "," + stateName);
+                    hashMap.put("latitude", String.valueOf(Latitude));
+                    hashMap.put("longitude", String.valueOf(Longitute));
+                    hashMap.put("batch_id", data);
+                    JSONObject jsonObject = jsonParser.performPostCI("tracking/create", hashMap);
+                    try {
+                        if (jsonObject == null) {
+                            Toast.makeText(MainActivity.this, "Cannot Connect To server", Toast.LENGTH_SHORT).show();
+                        } else if (!jsonObject.getBoolean("error")) {
+                            Toast.makeText(MainActivity.this, "Tracking Created Successfull", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, jsonObject.getString("message"), Toast.LENGTH_SHORT).show();
+                        }
+                        alertDialog.dismiss();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
                     }
-                } catch (JSONException e) {
-                    e.printStackTrace();
                 }
             }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                Toast.makeText(MainActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        }){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                Map<String,String> params = new HashMap<>();
-                params.put("latitude", String.valueOf(Latitude));
-                params.put("longitude", String.valueOf(Longitute));
-                params.put("batch_id",batchEditText.getText().toString().trim());
-                params.put("tracking_address",cityName + "," + stateName);
-                return params;
-            }
-        };
-        Appcontroller.getInstance().addToRequestQueue(request);
+        });
     }
 }
