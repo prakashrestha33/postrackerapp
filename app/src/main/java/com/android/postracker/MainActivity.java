@@ -1,12 +1,15 @@
 package com.android.postracker;
 
 import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.DialogInterface;
 import android.location.Address;
 import android.location.Geocoder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -35,11 +38,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,View.OnClickListener{
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback{
+    final String url = "192.168.0.112:8080/api/tracking/create";
     private double Latitude = 27.6868, Longitute = 85.3352;
     private GoogleMap mMap;
-    private String cityName;
-    private String stateName;
+    private String cityName="shankhamul";
+    private String stateName="kathmandu";
+    private EditText batchEditText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,7 +55,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .findFragmentById(R.id.mapview);
         Button locationSelect = (Button) findViewById(R.id.activity_main_select_button);
 
-        locationSelect.setOnClickListener(this);
+        locationSelect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                createBatchId();
+            }
+        });
 
         mapFragment.getMapAsync(this);
     }
@@ -111,20 +121,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    @Override
-    public void onClick(View v) {
-        createBatchId();
-    }
-
     private void createBatchId() {
-        final String url = "192.168.100:8080/api/tracking/create";
+
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
 // ...Irrelevant code for customizing the buttons and title
         LayoutInflater inflater = this.getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_main, null);
         dialogBuilder.setView(dialogView);
 
-        final EditText batchEditText =(EditText) findViewById(R.id.dialog_main_batch_editText);
+        batchEditText =(EditText) findViewById(R.id.dialog_main_batch_editText);
+
+        dialogBuilder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+
+            }
+        });
 
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
@@ -132,40 +144,43 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         alertDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                StringRequest request = new StringRequest(Request.Method.POST, url,
-                        new Response.Listener<String>() {
-                            @Override
-                            public void onResponse(String response) {
-                                try {
-                                    JSONObject jsonObject = new JSONObject(response);
-                                    boolean error = jsonObject.getBoolean("error");
-                                    if (!error){
-                                        Toast.makeText(MainActivity.this, "Location Has been added", Toast.LENGTH_SHORT).show();
-                                    }
-                                    Toast.makeText(MainActivity.this, "Something Went wrong", Toast.LENGTH_SHORT).show();
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }, new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-
-                    }
-                }){
-                    @Override
-                    protected Map<String, String> getParams() throws AuthFailureError {
-                        Map<String,String> params = new HashMap<String, String>();
-                        params.put("longitude", String.valueOf(Longitute));
-                        params.put("latitude", String.valueOf(Latitude));
-                        params.put("address_name",cityName+","+stateName);
-                        params.put("batch_id",batchEditText.getText().toString());
-                        return params;
-                    }
-                };
-                request.setRetryPolicy(new DefaultRetryPolicy());
-                Volley.newRequestQueue(v.getContext()).add(request);
+                setOrder();
             }
         });
+    }
+
+    private void setOrder() {
+        StringRequest request = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                try {
+                    JSONObject jsonObject = new JSONObject(response);
+                    boolean error = jsonObject.getBoolean("error");
+                    if (!error){
+                        Toast.makeText(MainActivity.this, "Tracking has been created", Toast.LENGTH_SHORT).show();
+                    }else {
+                        Toast.makeText(MainActivity.this, "Something went wrong", Toast.LENGTH_SHORT).show();
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Toast.makeText(MainActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        }){
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
+                Map<String,String> params = new HashMap<>();
+                params.put("latitude", String.valueOf(Latitude));
+                params.put("longitude", String.valueOf(Longitute));
+                params.put("batch_id",batchEditText.getText().toString().trim());
+                params.put("tracking_address",cityName + "," + stateName);
+                return params;
+            }
+        };
+        Appcontroller.getInstance().addToRequestQueue(request);
     }
 }
