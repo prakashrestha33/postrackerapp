@@ -22,7 +22,7 @@ import java.util.Map;
 
 public class JsonParser {
 
-    private static final String base_url= "192.168.10.8:8000/api";
+    private static final String base_url= "192.168.0.112:8000/api";
 
     public JSONObject performPostCI(String requestURL,
                                     HashMap<String, String> postDataParams) {

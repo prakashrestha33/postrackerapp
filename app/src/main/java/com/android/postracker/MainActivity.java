@@ -8,9 +8,13 @@ import android.os.Bundle;
 import android.os.StrictMode;
 import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.android.postracker.jsonparse.JsonParser;
@@ -37,6 +41,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private String cityName="shankhamul";
     private String stateName="kathmandu";
     private EditText batchEditText;
+    private EditText deliveryEditText;
+    private Spinner deliverySpinner;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +61,76 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
 
         mapFragment.getMapAsync(this);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.action_delivery:
+                delivery();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void delivery() {
+        AlertDialog.Builder deliverydialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View deliveryView = inflater.inflate(R.layout.dialog_delivery, null);
+        deliveryEditText = (EditText) deliveryView.findViewById(R.id.delivery_trackingID);
+        deliverySpinner = (Spinner) deliveryView.findViewById(R.id.delivery_status);
+
+        deliverydialogBuilder.setView(deliveryView);
+
+        if (android.os.Build.VERSION.SDK_INT > 9) {
+            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+            StrictMode.setThreadPolicy(policy);
+        }
+
+        deliverydialogBuilder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+            }
+        });
+
+        final AlertDialog alertDialog = deliverydialogBuilder.create();
+        alertDialog.show();
+
+        alertDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final String data = deliveryEditText.getText().toString().trim();
+                final long status = deliverySpinner.getSelectedItemId();
+                if (data.length() < 0) {
+                    Toast.makeText(MainActivity.this, "Fields are Empty", Toast.LENGTH_SHORT).show();
+                } else {
+                    HashMap<String, String> hashMap = new HashMap<>();
+                    hashMap.put("tracking_id", data);
+                    hashMap.put("delivery_status", String.valueOf(status));
+                    JSONObject jsonObject = jsonParser.performPostCI("tracking_id/status", hashMap);
+                    try {
+                        if (jsonObject == null) {
+                            Toast.makeText(MainActivity.this, "Cannot Connect To server", Toast.LENGTH_SHORT).show();
+                        } else if (!jsonObject.getBoolean("error")) {
+                            Toast.makeText(MainActivity.this, "Delivery status updated Successfully", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, jsonObject.getString("message"), Toast.LENGTH_SHORT).show();
+                        }
+                        alertDialog.dismiss();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
     }
 
     @Override

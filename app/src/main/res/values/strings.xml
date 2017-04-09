@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">Postracker</string>
     <string name="batch_id">Enter Batch Id</string>
+    <string name="choose">Choose Delivery Status</string>
+
+    <string-array name="delivery_status">
+        <item>Not Delivered</item>
+        <item>Delivered</item>
+    </string-array>
 </resources>
